@@ -1,0 +1,5 @@
+python-dotenv
+PyYAML
+cx-Oracle
+SQLAlchemy
+playwright

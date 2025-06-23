@@ -1,0 +1,38 @@
+# Lista de destinatarios del correo
+email_recipients:
+  - "distribucion.operaciones@empresa.com"
+  - "equipo.soporte@empresa.com"
+
+# Configuración del servidor de correo
+smtp_server: "smtp.empresa.com"
+smtp_port: 587
+smtp_user: "reporter@empresa.com"
+# La contraseña del SMTP se gestionará como un secreto
+
+# Lista de sistemas a verificar
+systems_to_check:
+  - name: "Sistema de Facturación (PROD)"
+    enabled: true
+    web:
+      url: "https://facturacion.empresa.com/login"
+      user: "monitor_user"
+      # La contraseña se gestionará como un secreto (p. ej., env var: FACTURACION_WEB_PASS)
+    database:
+      db_type: "oracle" # o postgresql, mssql, mysql
+      host: "db-fact-prod.empresa.local"
+      port: 1521
+      user: "monitor_db"
+      db_name: "FACTPROD"
+      # La contraseña se gestionará como un secreto (p. ej., env var: FACTURACION_DB_PASS)
+
+  - name: "Sistema CRM (PROD)"
+    enabled: true
+    web:
+      url: "https://crm.empresa.com/portal"
+      user: "monitor_user"
+    database:
+      db_type: "mssql"
+      host: "sql-crm-prod.empresa.local"
+      port: 1433
+      user: "monitor_db"
+      db_name: "CRM"
