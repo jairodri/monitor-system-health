@@ -1,4 +1,5 @@
 from web_checker_module import check_web_ui
+from database_checker_module import check_database
 from utils import load_yaml_config, load_secrets
 
    
@@ -30,31 +31,48 @@ def main():
             continue
 
         system_name = system['name']
-        password_key = f"{system_name.upper()}_WEB_PASSWORD"
+        print(f"\n== Verificando sistema: {system_name} ==")
         
         # 4. Ejecutar verificación web
+        web_password_key = f"{system_name.upper()}_WEB_PASSWORD"
         try:
-            web_status, message = check_web_ui(
+            web_status, web_message = check_web_ui(
                 url=system['web']['url'],
                 user=system['web']['user'],
-                password=secrets[password_key],
+                password=secrets[web_password_key],
                 selectors=system['web']['selectors'],
                 headless=True
             )
         except Exception as e:
-            web_status = f"ERROR: {e}"
+            web_status = False 
+            web_message = f"ERROR: {e}"
 
         # # 5. Ejecutar verificación de base de datos
-        # try:
-        #     db_status = check_database(system['database']) # Devuelve el número de tareas o "ERROR: [motivo]"
-        # except Exception as e:
-        #     db_status = f"ERROR: {e}"
+        db_password_key = f"{system_name.upper()}_DB_PASSWORD"
+        db_config = {
+            'host': system['database']['host'],
+            'port': system['database']['port'],
+            'service_name': system['database']['db_name'],
+            'username': system['database']['user'],
+            'password': secrets[db_password_key]
+        }
+        try:
+            db_status, db_message = check_database(
+                db_type=system['database']['db_type'],
+                db_config=db_config
+            ) 
+        except Exception as e:
+            db_status = False
+            db_message = f"ERROR: {e}"
             
         all_results.append({
             "name": system_name,
-            "web_status": web_status,
-            "db_tasks": web_status # Aquí deberías agregar la lógica para obtener el número de tareas de la base de datos
+            "web_status": (web_status, web_message),
+            "db_tasks": (db_status, db_message) 
         })
+        print(f"Resultados para {system_name}:")
+        print(f"  Web: {web_status} - {web_message}")
+        print(f"  DB: {db_status} - {db_message}")
 
     # # 6. Generar y enviar el reporte
     # email_body = generate_html_report(all_results)
