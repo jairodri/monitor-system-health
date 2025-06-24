@@ -1,6 +1,6 @@
 from web_checker_module import check_web_ui
 from database_checker_module import check_database
-from utils import load_yaml_config, load_secrets
+from utils import load_yaml_config, load_secrets, generate_html_report, send_email, generate_outlook_email
 
    
 def main():
@@ -31,6 +31,7 @@ def main():
             continue
 
         system_name = system['name']
+        system_description = system['description']
         print(f"\n== Verificando sistema: {system_name} ==")
         
         # 4. Ejecutar verificación web
@@ -66,7 +67,7 @@ def main():
             db_message = f"ERROR: {e}"
             
         all_results.append({
-            "name": system_name,
+            "name": system_description,
             "web_status": (web_status, web_message),
             "db_tasks": (db_status, db_message) 
         })
@@ -75,13 +76,25 @@ def main():
         print(f"  DB: {db_status} - {db_message}")
 
     # # 6. Generar y enviar el reporte
-    # email_body = generate_html_report(all_results)
+    email_body = generate_html_report(all_results)
+    smtp_config = {
+        'host': config['smtp_server'],
+        'port': config['smtp_port'],
+        'user': config['smtp_user'],
+        'password': secrets['SMTP_PASSWORD']
+    }
+
     # send_email(
     #     subject="Reporte Operativo de Sistemas",
     #     body=email_body,
     #     recipients=config['email_recipients'],
-    #     smtp_config=config['smtp_server']
+    #     smtp_config=smtp_config
     # )
+    generate_outlook_email(
+        subject="Reporte Operativo de Sistemas",
+        body=email_body,
+        recipients=config['email_recipients']
+    )
 
 if __name__ == "__main__":
     main()

@@ -3,3 +3,4 @@ PyYAML
 cx-Oracle
 SQLAlchemy
 playwright
+pywin32

@@ -46,7 +46,7 @@ def check_web_ui(url: str, user: str, password: str, selectors: dict, headless: 
             # Esperamos a que aparezca un elemento que solo es visible tras un login exitoso.
             print("INFO: Verificando indicador de éxito post-login...")
             success_element = page.locator(selectors['success_indicator'])
-            success_element.wait_for(state='visible', timeout=15000) # 15 seg de timeout
+            success_element.wait_for(state='visible', timeout=20000) # 20 seg de timeout
             print("INFO: Login verificado correctamente.")
 
             # 5. Hacer logout
