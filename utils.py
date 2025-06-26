@@ -4,8 +4,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
 import cx_Oracle
 import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from datetime import datetime
 import win32com.client
 
@@ -21,7 +19,7 @@ def load_yaml_config(file_path: str) -> dict:
         dict: Un diccionario con la configuración o None si hay un error.
     """
     try:
-        with open(file_path, 'r') as file:
+        with open(file_path, 'r', encoding='utf-8') as file:
             return yaml.safe_load(file)
     except FileNotFoundError:
         print(f"ERROR: El fichero de configuración '{file_path}' no fue encontrado.")
@@ -69,9 +67,10 @@ def connect_to_oracle(host:str, port:int, service_name:str, username:str, passwo
         print(f"Error connecting to the database: {e}")
         return None
     
-def generate_html_report(results: list[dict]) -> str:
+def generate_html_report(results: list[dict], signature: str = "") -> str:
     """
-    Genera un reporte HTML a partir de una lista de resultados de verificación.
+    Genera un reporte HTML a partir de una lista de resultados de verificación,
+    incluyendo una firma opcional al final.
     """
     styles = """
     <style>
@@ -84,14 +83,15 @@ def generate_html_report(results: list[dict]) -> str:
         .status-ok { color: #27ae60; font-weight: bold; }
         .status-fail { color: #c0392b; font-weight: bold; }
         .message { font-size: 0.9em; color: #7f8c8d; }
+        .signature { margin-top: 30px; font-size: 1em; color: #555; }
     </style>
     """
     rows_html = ""
     for result in results:
         web_status, web_message = result['web_status']
         db_status, db_message = result['db_tasks']
-        web_status_html = f"<span class='{'status-ok' if web_status else 'status-fail'}'>{'ÉXITO' if web_status else 'FALLO'}</span>"
-        db_status_html = f"<span class='{'status-ok' if db_status else 'status-fail'}'>{'ÉXITO' if db_status else 'FALLO'}</span>"
+        web_status_html = f"<span class='{'status-ok' if web_status else 'status-fail'}'>{'CORRECTO' if web_status else 'ERROR'}</span>"
+        db_status_html = f"<span class='{'status-ok' if db_status else 'status-fail'}'>{'CORRECTO' if db_status else 'ERROR'}</span>"
         rows_html += f"""
         <tr>
             <td>{result['name']}</td>
@@ -99,71 +99,77 @@ def generate_html_report(results: list[dict]) -> str:
             <td>{db_status_html}<div class='message'>{db_message}</div></td>
         </tr>
         """
+    # Incluye la firma si está presente
+    signature_html = f"<div class='signature'>{signature}</div>" if signature else ""
     html_template = f"""
     <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Reporte Operativo</title>{styles}</head>
     <body>
-        <h1>Reporte Operativo de Sistemas</h1>
-        <p>Fecha del reporte: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        <h1>Estado Sistemas Labware</h1>
+        <p>Fecha del informe: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}</p>
         <table><thead><tr><th>Sistema</th><th>Estado Web</th><th>Estado Base de Datos</th></tr></thead>
         <tbody>{rows_html}</tbody></table>
+        {signature_html}
     </body></html>
     """
     return html_template
 
-def send_email(subject: str, body: str, recipients: list[str], smtp_config: dict):
+# def send_email(subject: str, body: str, recipients: list[str], smtp_config: dict):
+#     """
+#     Envía un correo electrónico HTML a través de un servidor SMTP con autenticación.
+#     """
+#     import smtplib
+#     from email.mime.multipart import MIMEMultipart
+#     from email.mime.text import MIMEText
+
+#     smtp_host = smtp_config['host']
+#     smtp_port = int(smtp_config['port'])
+#     smtp_user = smtp_config['user']
+#     smtp_password = smtp_config.get('password', None)
+#     print(f'smtp_host: {smtp_host}, smtp_port: {smtp_port}, smtp_user: {smtp_user}, smtp_password: {smtp_password}')
+
+
+#     msg = MIMEMultipart('alternative')
+#     msg['Subject'] = subject
+#     msg['From'] = smtp_user
+#     msg['To'] = ", ".join(recipients)
+#     msg.attach(MIMEText(body, 'html', 'utf-8'))  # Especifica codificación
+
+#     server = None
+#     try:
+#         server = smtplib.SMTP(smtp_host, smtp_port)
+#         print(f'server: {server}')
+#         server.ehlo()
+#         if smtp_password:  # Solo intenta autenticación si hay contraseña
+#             server.starttls()
+#             print("INFO: Autenticación SMTP iniciada.")
+#             server.login(smtp_user, smtp_password)
+#         server.sendmail(smtp_user, recipients, msg.as_string())
+#         print(f"Correo de reporte enviado exitosamente a: {', '.join(recipients)}")
+#     except Exception as e:
+#         print(f"ERROR CRÍTICO: No se pudo enviar el correo. Detalles: {e}")
+#     finally:
+#         if server:
+#             try:
+#                 server.quit()
+#             except Exception:
+#                 pass
+
+def generate_outlook_email(subject: str, body: str, to: list[str], cc: list[str] = None):
     """
-    Envía un correo electrónico HTML a través de un servidor SMTP con autenticación.
+    Genera un correo en Outlook con destinatarios principales y en copia.
     """
-    import smtplib
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
-
-    smtp_host = smtp_config['host']
-    smtp_port = int(smtp_config['port'])
-    smtp_user = smtp_config['user']
-    smtp_password = smtp_config.get('password', None)
-    print(f'smtp_host: {smtp_host}, smtp_port: {smtp_port}, smtp_user: {smtp_user}, smtp_password: {smtp_password}')
-
-
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = subject
-    msg['From'] = smtp_user
-    msg['To'] = ", ".join(recipients)
-    msg.attach(MIMEText(body, 'html', 'utf-8'))  # Especifica codificación
-
-    server = None
     try:
-        server = smtplib.SMTP(smtp_host, smtp_port)
-        print(f'server: {server}')
-        server.ehlo()
-        if smtp_password:  # Solo intenta autenticación si hay contraseña
-            server.starttls()
-            print("INFO: Autenticación SMTP iniciada.")
-            server.login(smtp_user, smtp_password)
-        server.sendmail(smtp_user, recipients, msg.as_string())
-        print(f"Correo de reporte enviado exitosamente a: {', '.join(recipients)}")
-    except Exception as e:
-        print(f"ERROR CRÍTICO: No se pudo enviar el correo. Detalles: {e}")
-    finally:
-        if server:
-            try:
-                server.quit()
-            except Exception:
-                pass
-
-def generate_outlook_email(subject: str, body: str, recipients: list[str]):
-    """
-    Genera un correo en Outlook con el asunto, destinatarios y cuerpo HTML proporcionados.
-    El correo se abre en modo edición para que el usuario lo revise y lo envíe manualmente.
-    """
-    try:
+        import win32com.client
         outlook = win32com.client.Dispatch("Outlook.Application")
         mail = outlook.CreateItem(0)
         mail.Subject = subject
-        mail.To = "; ".join(recipients)
+        mail.To = "; ".join(to)
+        if cc:
+            mail.CC = "; ".join(cc)
         mail.HTMLBody = body
-        mail.Display()  # Abre el correo en modo edición
+        mail.Display()
         print("Correo generado en Outlook. Revísalo y pulsa Enviar.")
     except Exception as e:
         print(f"ERROR: No se pudo generar el correo en Outlook. Detalles: {e}")
+
     

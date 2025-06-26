@@ -33,7 +33,7 @@ def check_database(db_type: str, db_config: dict) ->  tuple[bool, str]:
             result = connection.execute(text("SELECT COUNT(*) FROM server_action"))
             active_tasks = result.scalar()  # Obtener el número de tareas activas
 
-        return True, f"OK: {active_tasks} tareas activas."
+        return True, f"{active_tasks} tareas pendientes en server_action."
 
     except Exception as e:
         return False, f"ERROR: {e}"
